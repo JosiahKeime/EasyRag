@@ -12,6 +12,10 @@ st.set_page_config(
 
 st.markdown(style.style_sheet, unsafe_allow_html=True)
 embedder = Embedder()
+
+if "uploaded_files" not in st.session_state:
+    st.session_state.uploaded_files = embedder.collection_names.copy()
+
 print("configured page")
 # ─── Session state initialisation ─────────────────────────────────────────────
 def init_state():
@@ -87,7 +91,10 @@ with st.sidebar:
  
     # ── File uploader ──
     st.markdown('<div class="section-label">Documents</div>', unsafe_allow_html=True)
- 
+    
+
+
+
     uploaded = st.file_uploader(
         "Upload files to embed",
         type=["pdf", "txt", "md", "docx"],

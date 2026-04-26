@@ -1,3 +1,5 @@
+import chromadb
+
 import config
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
@@ -20,7 +22,9 @@ class Embedder:
                             )
         self.embedding_model_name = embedding_model_name
         self.embedding_model = OpenAIEmbeddings(model=embedding_model_name, openai_api_key=openai_api_key)
-        self.collection_names = []
+        existing_client = chromadb.PersistentClient(path="./chroma_db")
+        self.collection_names = [ col.name for col in existing_client.list_collections() ]
+
     def file_transformer(self, file) -> str:
         if file.type in ('text/plain', 'text/markdown'):
             return file.read().decode('utf-8')
@@ -41,15 +45,16 @@ class Embedder:
                 Document(page_content=t, metadata={"source": file.name})
                 for t in chunks_text
             ]
-
-            vectorstore = Chroma.from_documents(
+            # sanitized collection for chroma: replace dots and spaces, lowercase
+            collection_name = file.name.replace(".", "-").replace(" ", "-").lower()
+            _ = Chroma.from_documents(
                 documents=chunks,
                 embedding=self.embedding_model,        # ✅ object not string
                 persist_directory="./chroma_db",
-                collection_name=file.name
+                collection_name=collection_name
             )
 
-            self.collection_names.append(file.name)
+            self.collection_names.append(collection_name)
             return True, f"File {file.name} embedded successfully."
 
         except Exception as e:
