@@ -1,0 +1,93 @@
+# Johnson & Johnson — Form 10-K (FY2024)
+**Filing Date:** February 13, 2025
+**Fiscal Year Ended:** December 29, 2024
+**Ticker:** JNJ (NYSE)
+**Source:** SEC EDGAR — https://www.sec.gov/Archives/edgar/data/0000200406/000020040625000038/jnj-20241229.htm
+
+---
+
+## PART I
+
+### Item 1. Business
+
+#### General
+
+Johnson & Johnson and its subsidiaries (the Company) have approximately 138,100 employees worldwide engaged in the research and development, manufacture and sale of a broad range of products in the healthcare field. Johnson & Johnson is a holding company, incorporated in the State of New Jersey in 1887, with operating companies conducting business in virtually all countries of the world. The Company's primary focus is products related to human health and well-being.
+
+The Chief Operating Decision Maker (CODM) is the Company's Chief Executive Officer. The Executive Committee is Johnson & Johnson's senior leadership team responsible for setting strategy and driving accountability.
+
+#### Segments of Business
+
+The Company is organized into two business segments: **Innovative Medicine** and **MedTech**.
+
+**Innovative Medicine** focuses on the following therapeutic areas:
+- Immunology (e.g., rheumatoid arthritis, psoriatic arthritis, inflammatory bowel disease, psoriasis)
+- Infectious Diseases (e.g., HIV/AIDS)
+- Neuroscience (e.g., mood disorders, neurodegenerative disorders, schizophrenia)
+- Oncology (e.g., prostate cancer, hematologic malignancies, lung cancer, bladder cancer)
+- Cardiovascular and Metabolism (e.g., thrombosis, diabetes, macular degeneration)
+- Pulmonary Hypertension (e.g., Pulmonary Arterial Hypertension)
+
+Key Innovative Medicine products include: REMICADE (infliximab), SIMPONI/SIMPONI ARIA (golimumab), STELARA (ustekinumab), TREMFYA (guselkumab), EDURANT (rilpivirine), PREZISTA/PREZCOBIX (darunavir), SYMTUZA, CONCERTA (methylphenidate), INVEGA SUSTENNA/TRINZA (paliperidone palmitate), SPRAVATO (esketamine), CARVYKTI (ciltacabtagene autoleucel), ZYTIGA (abiraterone acetate), ERLEADA (apalutamide), IMBRUVICA (ibrutinib), DARZALEX/DARZALEX FASPRO (daratumumab), TECVAYLI (teclistamab), XARELTO (rivaroxaban), OPSUMIT (macitentan), UPTRAVI (selexipag).
+
+**MedTech** includes products used in:
+- Cardiovascular (electrophysiology, Abiomed heart recovery, Shockwave circulatory restoration, neurovascular)
+- Orthopaedics (hips, knees, trauma, spine, sports)
+- Surgery (advanced and general surgery, Mentor breast aesthetics)
+- Vision (ACUVUE contact lenses, TECNIS intraocular lenses)
+
+#### Geographic Areas
+
+The Company conducts business in virtually all countries worldwide. In fiscal 2024, approximately 43% of sales occurred outside the U.S. (approximately 23% in Europe, 5% in the Western Hemisphere excluding U.S., and 15% in Asia-Pacific and Africa).
+
+#### Raw Materials
+
+Raw materials essential to the Company's business are generally readily available from multiple sources.
+
+#### Patents
+
+The Company's subsidiaries own or are licensed under a significant number of patents in the U.S. and other countries. Key patent facts:
+- **DARZALEX** (daratumumab + DARZALEX FASPRO): ~13.1% of total 2024 revenues. Core patents expire in the U.S. in 2029 and extend to 2031/2032 in select European countries.
+- **STELARA** (ustekinumab): ~11.7% of total 2024 revenues. Biosimilar launches expected in Europe and the U.S. in 2025.
+
+#### Trademarks
+
+The Company sells products under registered trademarks protected in the U.S. and internationally.
+
+#### Seasonality
+
+Worldwide sales do not reflect significant seasonality; however, spending is typically heavier in Q4, principally for advertising and R&D activity.
+
+#### Competition
+
+The Company's subsidiaries compete with companies both locally and globally across all product lines. Competition in research — internal and external — is particularly significant. The competitive environment requires substantial ongoing investment in R&D.
+
+#### Environment
+
+The Company believes its operations comply in all material respects with applicable environmental laws and regulations, and that compliance is not expected to have a material effect on capital expenditures, cash flows, or earnings.
+
+#### Regulation
+
+The Company's businesses are subject to varying degrees of governmental regulation worldwide. Key regulatory matters:
+- U.S. FDA regulation of pharmaceutical products and medical technology (product safety, efficacy, manufacturing, advertising, labeling, safety reporting)
+- Inflation Reduction Act (IRA, 2022): CMS authorized to negotiate Medicare prices for high-spend drugs starting in 2026 (Part D) and 2028 (Part B). XARELTO, STELARA, and IMBRUVICA are on the first Selected Drug list.
+- Janssen filed litigation in July 2023 challenging the IRA's constitutionality under the First and Fifth Amendments; appeal filed to the Third Circuit in April 2024.
+- EU regulations: NIS2, EHDS, Data Act, Cyber Resilience Act, AI Act — increasing privacy and cybersecurity compliance requirements.
+- China data security and personal information protection regulations.
+- 340B Drug Pricing Program requirements.
+
+#### Employees and Human Capital Management
+
+| Metric | 2024 | 2023 |
+|--------|------|------|
+| Employees | 139,800 | 134,400 |
+| Full-time equivalent (FTE) positions | 138,100 | 131,900 |
+
+Human capital strategy is built on three pillars: attracting and recruiting top talent, developing and retaining top talent, and empowering and inspiring talent.
+
+- Voluntary turnover rate in 2024: 6.3%
+- 94% of global employees across 73 countries participated in the 2024 Credo Survey (offered in 36 languages)
+- Global Learning Day held to promote continuous development via the J&J Learn platform
+- J&J Flex: hybrid work model balancing in-person and remote work
+
+---

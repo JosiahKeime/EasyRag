@@ -1,3 +1,12 @@
+# added
+scratch_paper.ipynb
+.venv/
+.env/
+.env
+
+## Chroma DB
+chroma_db/ 
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
