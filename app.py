@@ -14,7 +14,11 @@ st.markdown(style.style_sheet, unsafe_allow_html=True)
 embedder = Embedder()
 
 if "uploaded_files" not in st.session_state:
-    st.session_state.uploaded_files = embedder.collection_names.copy()
+    try:
+        st.session_state.uploaded_files = embedder.collection_names.copy()
+    except Exception as e:
+        print(f"no colleections in embedder: {e}")
+        st.session_state.uploaded_files = []
 
 print("configured page")
 # ─── Session state initialisation ─────────────────────────────────────────────
@@ -32,6 +36,7 @@ def init_state():
  
 init_state()
 print("initialized session state")
+
 # ─── Backend stubs (replace with your real implementations) ───────────────────
  
 def embed_file(uploaded_file) -> bool:
@@ -41,30 +46,9 @@ def embed_file(uploaded_file) -> bool:
  
  
 def query_rag(prompt: str, history: list) -> tuple[str, int]:
-    """
-    Takes the user prompt + full chat history.
-    Returns (response_text, total_tokens_used).
- 
-    Example with Anthropic SDK:
-        client = anthropic.Anthropic()
-        retrieved = st.session_state.index.similarity_search(prompt, k=4)
-        context = "\\n\\n".join([d.page_content for d in retrieved])
-        messages = build_messages(history, prompt, context)
-        response = client.messages.create(
-            model="claude-opus-4-5",
-            max_tokens=1024,
-            messages=messages,
-        )
-        return response.content[0].text, response.usage.input_tokens + response.usage.output_tokens
-    """
-    # ── stub: echo response ──
-    reply = (
-        f"*(Backend not connected yet)*\n\n"
-        f"You asked: **{prompt}**\n\n"
-        f"Wire up `query_rag()` in app.py to get real answers."
-    )
-    fake_tokens = st.session_state.context_tokens + len(prompt.split()) * 2
-    return reply, min(fake_tokens, st.session_state.context_limit)
+    
+
+    return 
  
  
 def stream_query_rag(prompt: str, history: list):
@@ -103,16 +87,12 @@ with st.sidebar:
     )
  
     if uploaded:
-        # if uploaded:
-        #     st.write("Files detected:", [f.name for f in uploaded])
-        #     st.write("Already embedded:", st.session_state.uploaded_files)
-        # else:
-        #     st.write("Uploader returned nothing")
-
         new_files = [f for f in uploaded if f.name not in st.session_state.uploaded_files]
         if new_files:
             with st.spinner(f"Embedding {len(new_files)} file(s)…"):
+                print(f"New files to embed: {[f.name for f in new_files]}")
                 for f in new_files:
+                    print(f"Processing file: {f.name} of type {f.type}")
                     success = embed_file(f)
                     if success:
                         st.session_state.uploaded_files.append(f.name)
@@ -200,7 +180,7 @@ else:
  
 # ── Chat input ────────────────────────────────────────────────────────────────
 if prompt := st.chat_input("Ask about your documents…"):
- 
+    print(f"User prompt: {prompt}")
     # Warn if no documents embedded yet
     if not st.session_state.uploaded_files:
         st.warning("Upload at least one document in the sidebar before asking questions.")
