@@ -11,9 +11,11 @@ from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, BaseMessage
+from enum import Enum
 import os
 load_dotenv()  # loads from .env file in current directory
+
 
 
 class Embedder:
@@ -115,12 +117,11 @@ class Context:
     def history_to_langchain_messages(self, history) -> list[messages.BaseMessage]:
         msg = []
         # history
-        for msg in history:
-            if msg["role"] == "user":
-                msg.append(HumanMessage(content=msg["content"]))
+        for m in history:
+            if m["role"] == "user":
+                msg.append(HumanMessage(content=m["content"]))
             else:
-                msg.append(AIMessage(content=msg["content"]))
-
+                msg.append(AIMessage(content=m["content"]))
         return msg
     
     def build_context(self, history, user_input, doc_context):
@@ -157,4 +158,69 @@ class Context:
         with open(file, "r") as f:
             return json.load(f)
 
-  
+
+
+
+class LLMClient:
+    def __init__(self,
+        provider: str       = 'openai',
+        model: str          = None,
+        max_tokens: int     = 1024,
+        temperature: float  = 0.7,
+    ):
+        self.provider    = provider
+        self.max_tokens  = max_tokens
+        self.temperature = temperature
+
+        # ── default models per provider ──
+        default_models = {
+            'openai':    "gpt-4o",
+            'anthropic': "claude-opus-4-5",
+        }
+        self.model = model or default_models[provider]
+
+        # ── initialise the right client ──
+        if provider == 'openai':
+            from langchain_openai import ChatOpenAI
+            self.client = ChatOpenAI(
+                model=self.model,
+                max_tokens=self.max_tokens,
+                temperature=self.temperature,
+                openai_api_key=os.getenv("OPENAI_API_KEY"),
+                streaming=True,
+            )
+
+        elif provider == 'anthropic':
+            from langchain_anthropic import ChatAnthropic
+            self.client = ChatAnthropic(
+                model=self.model,
+                max_tokens=self.max_tokens,
+                temperature=self.temperature,
+                anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),
+                streaming=True,
+            )
+
+    def invoke(self, messages: list[BaseMessage]) -> str:
+        """
+        Sends messages and waits for the full response.
+        Returns the response as a plain string.
+        """
+        response = self.client.invoke(messages)
+        return response.content
+
+    def stream(self, messages: list[BaseMessage]):
+        """
+        Streams the response token by token.
+        Use with st.write_stream() in Streamlit.
+        """
+        for chunk in self.client.stream(messages):
+            if chunk.content:
+                yield chunk.content
+
+    def get_token_count(self, messages: list[BaseMessage]) -> int:
+        """
+        Returns the token count for a list of messages
+        without actually invoking the model.
+        Useful for tracking context window usage.
+        """
+        return self.client.get_num_tokens_from_messages(messages)

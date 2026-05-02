@@ -1,6 +1,7 @@
 import streamlit as st
 import style
-from util import Embedder
+from util import Embedder, Context, LLMClient
+from datetime import datetime
 
 # ─── Page config (must be first Streamlit call) ───────────────────────────────
 st.set_page_config(
@@ -11,14 +12,9 @@ st.set_page_config(
 )
 
 st.markdown(style.style_sheet, unsafe_allow_html=True)
-embedder = Embedder()
 
-if "uploaded_files" not in st.session_state:
-    try:
-        st.session_state.uploaded_files = embedder.collection_names.copy()
-    except Exception as e:
-        print(f"no colleections in embedder: {e}")
-        st.session_state.uploaded_files = []
+
+
 
 print("configured page")
 # ─── Session state initialisation ─────────────────────────────────────────────
@@ -33,25 +29,54 @@ def init_state():
     for key, val in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = val
- 
+    # ── Embedder ──────────────────────────────────────────────────
+    if "embedder" not in st.session_state:
+        st.session_state.embedder = Embedder()
+    # ── Context ───────────────────────────────────────────────────
+    if "context" not in st.session_state:
+        st.session_state.context = Context()
+    # ── LLMClient ─────────────────────────────────────────────────
+    if "llm" not in st.session_state:
+        st.session_state.llm = LLMClient(provider='openai')
+    
+
+
 init_state()
+EMBEDDER = st.session_state.embedder
+CONTEXT = st.session_state.context
+LLM = st.session_state.llm
+
 print("initialized session state")
+
+if "uploaded_files" not in st.session_state:
+    try:
+        st.session_state.uploaded_files = st.session_state.embedder.collection_names.copy()
+    except Exception as e:
+        print(f"no colleections in embedder: {e}")
+        st.session_state.uploaded_files = []
+
 
 # ─── Backend stubs (replace with your real implementations) ───────────────────
  
 def embed_file(uploaded_file) -> bool:
-    success , _ = embedder.embed_file(uploaded_file)
+    success , _ = EMBEDDER.embed_file(uploaded_file)
     # ── stub: pretend it worked ──
     return success
  
- 
-def query_rag(prompt: str, history: list) -> tuple[str, int]:
+def query_rag(prompt: str) -> tuple[str, int]:
+    # ── stub: pretend we got a response from the LLM ──
+    Embedded_response = CONTEXT.build_documents_context(EMBEDDER, prompt)
+    msg = CONTEXT.build_context(CONTEXT.history, prompt, Embedded_response)
+    response = LLM.invoke(msg)
+    total_tokens = len(prompt.split()) + len(response.split()) + len(Embedded_response.split())
     
+    CONTEXT.history.append({"role": "user", "content": prompt})
+    CONTEXT.history.append({"role": "assistant", "content": response})
 
-    return 
+    return [response, total_tokens]
  
  
-def stream_query_rag(prompt: str, history: list):
+def stream_query_rag(prompt: str):
     """
     Streaming version of query_rag — yields string chunks.
     Use this with st.write_stream().
@@ -63,7 +88,7 @@ def stream_query_rag(prompt: str, history: list):
  
     For now we yield the stub response word by word.
     """
-    response, _ = query_rag(prompt, history)
+    response, _ = query_rag(prompt)
     for word in response.split(" "):
         yield word + " "
  
@@ -76,9 +101,6 @@ with st.sidebar:
     # ── File uploader ──
     st.markdown('<div class="section-label">Documents</div>', unsafe_allow_html=True)
     
-
-
-
     uploaded = st.file_uploader(
         "Upload files to embed",
         type=["pdf", "txt", "md", "docx"],
@@ -181,11 +203,6 @@ else:
 # ── Chat input ────────────────────────────────────────────────────────────────
 if prompt := st.chat_input("Ask about your documents…"):
     print(f"User prompt: {prompt}")
-    # Warn if no documents embedded yet
-    if not st.session_state.uploaded_files:
-        st.warning("Upload at least one document in the sidebar before asking questions.")
-        st.stop()
- 
     # Add user message to history and render it
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
@@ -196,7 +213,7 @@ if prompt := st.chat_input("Ask about your documents…"):
         if use_streaming:
             # Stream token by token
             full_response = st.write_stream(
-                stream_query_rag(prompt, st.session_state.messages)
+                stream_query_rag(prompt)
             )
             # Approximate token update for streaming
             # (replace with real token count from your API)
