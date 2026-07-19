@@ -116,12 +116,6 @@ def configure_logging():
     )
     logger.addHandler(json_handler)
 
-    stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(
-        logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
-    )
-    logger.addHandler(stream_handler)
-
     logger.info("Logging initialized | text_log=%s | json_log=%s", text_log_path, json_log_path)
     return logger
 
@@ -167,6 +161,17 @@ class Embedder:
         existing_client = chromadb.PersistentClient(path=chromadb_path)
         self.collection_names = [col.name for col in existing_client.list_collections()]
 
+    @staticmethod
+    def normalize_chunk_text(text: str) -> str:
+        if not text:
+            return ""
+
+        text = re.sub(r"\r\n?", "\n", text)
+        text = re.sub(r"[ \t]+", " ", text)
+        text = re.sub(r"\n\s*", " ", text)
+        text = re.sub(r"\s{2,}", " ", text)
+        return text.strip()
+
     def file_transformer(self, file) -> str:
         if file.type in ("text/plain", "text/markdown"):
             return file.read().decode("utf-8")
@@ -197,13 +202,26 @@ class Embedder:
         try:
             text = self.file_transformer(file)
             chunks_text = self.text_splitter.split_text(text)
+
+            normalized_chunks = []
+            for chunk in chunks_text:
+                normalized_chunk = self.normalize_chunk_text(chunk)
+                if normalized_chunk:
+                    normalized_chunks.append(normalized_chunk)
+
             chunks = [
                 Document(page_content=t, metadata={"source": file.name})
-                for t in chunks_text
+                for t in normalized_chunks
             ]
+
             collection_name = file.name.replace(".", "-").replace(" ", "-").lower()
 
-            logger.info("Embedding %d chunks for file '%s' into collection '%s'", len(chunks), file.name, collection_name)
+            logger.info(
+                "Embedding %d normalized chunks for file '%s' into collection '%s'",
+                len(chunks),
+                file.name,
+                collection_name,
+            )
 
             _ = Chroma.from_documents(
                 documents=chunks,
@@ -237,27 +255,63 @@ class Embedder:
 
 
 class Context:
-    def __init__(self, history=[], system_prompt=config.system_prompt, documents=[]):
-        self.system_prompt = system_prompt
-        self.history = history
-        self.documents = documents
+    def __init__(self, history=None, system_prompt=None, documents=None):
+        self.system_prompt = system_prompt or config.system_prompt
+        self.history = history or []
+        self.documents = documents or []
 
-    def build_documents_context(self, Embedder, query) -> str:
+    @staticmethod
+    def _to_collection_name(document_name):
+        if not document_name:
+            return None
+        name = str(document_name).strip()
+        return name.replace(".", "-").replace(" ", "-").lower()
+
+    def build_documents_context(self, embedder, query) -> str:
         logger.info("Building document context | query=%s", query)
         doc_context = ""
 
-        for doc in self.documents:
-            logger.info("Searching document '%s' for query '%s'", doc, query)
-            results = Embedder.vector_db_search(query, doc, k=1)
+        candidate_documents = self.documents or embedder.collection_names
+        if not candidate_documents:
+            logger.info("No document collections available to search")
+            return ""
+
+        for doc in candidate_documents:
+            collection_name = self._to_collection_name(doc)
+            logger.info(
+                "Searching document '%s' (collection '%s') for query '%s'",
+                doc,
+                collection_name,
+                query,
+            )
+
+            if not collection_name:
+                logger.warning("Skipping empty document name")
+                continue
+
+            if collection_name not in embedder.collection_names:
+                logger.warning(
+                    "Collection '%s' does not exist for document '%s'",
+                    collection_name,
+                    doc,
+                )
+                continue
+
+            results = embedder.vector_db_search(query, collection_name, k=1)
 
             if not results:
-                logger.info("No results found for document '%s'", doc)
+                logger.info("No results found for collection '%s'", collection_name)
                 continue
 
             doc_context += f"### Document: {doc}\n"
             for i, result in enumerate(results):
                 chunk_text = result.page_content
-                logger.info("Retrieved chunk %d from document '%s': %s", i + 1, doc, chunk_text)
+                logger.info(
+                    "Retrieved chunk %d from document '%s': %s",
+                    i + 1,
+                    doc,
+                    chunk_text,
+                )
                 doc_context += f"[Chunk {i+1}]\n{chunk_text}\n\n"
 
         logger.info("Document context built | length=%d | content=%s", len(doc_context), doc_context)

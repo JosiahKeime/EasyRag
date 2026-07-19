@@ -16,7 +16,6 @@ st.markdown(style.style_sheet, unsafe_allow_html=True)
 
 
 
-print("configured page")
 # ─── Session state initialisation ─────────────────────────────────────────────
 def init_state():
     defaults = {
@@ -46,13 +45,10 @@ EMBEDDER = st.session_state.embedder
 CONTEXT = st.session_state.context
 LLM = st.session_state.llm
 
-print("initialized session state")
-
 if "uploaded_files" not in st.session_state:
     try:
         st.session_state.uploaded_files = st.session_state.embedder.collection_names.copy()
-    except Exception as e:
-        print(f"no colleections in embedder: {e}")
+    except Exception:
         st.session_state.uploaded_files = []
 
 
@@ -112,9 +108,7 @@ with st.sidebar:
         new_files = [f for f in uploaded if f.name not in st.session_state.uploaded_files]
         if new_files:
             with st.spinner(f"Embedding {len(new_files)} file(s)…"):
-                print(f"New files to embed: {[f.name for f in new_files]}")
                 for f in new_files:
-                    print(f"Processing file: {f.name} of type {f.type}")
                     success = embed_file(f)
                     if success:
                         st.session_state.uploaded_files.append(f.name)
@@ -237,6 +231,3 @@ if prompt := st.chat_input("Ask about your documents…"):
  
     # Rerun so sidebar context meter updates immediately
     st.rerun()
-
-
-print("-----------------END OF APP------------------")
