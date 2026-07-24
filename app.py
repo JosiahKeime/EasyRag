@@ -1,6 +1,9 @@
 import streamlit as st
+import chromadb
 import style
-from util import Embedder, Context, LLMClient
+from util.embedder import Embedder
+from util.context import Context
+from util.llm_client import LLMClient
 from datetime import datetime
 
 # ─── Page config (must be first Streamlit call) ───────────────────────────────
@@ -22,7 +25,8 @@ def init_state():
         "messages": [],           # list of {"role": ..., "content": ...}
         "context_tokens": 0,      # tokens used so far
         "context_limit": 128_000, # model context window size
-        "uploaded_files": [],     # list of file names already embedded
+        "uploaded_files": [],     # list of collection names already embedded
+        "embedded_collections": [],
         "index": None,            # your vector store / index object goes here
     }
     for key, val in defaults.items():
@@ -37,19 +41,27 @@ def init_state():
     # ── LLMClient ─────────────────────────────────────────────────
     if "llm" not in st.session_state:
         st.session_state.llm = LLMClient(provider='openai')
-    
+
+
+def refresh_embedded_collections() -> list[str]:
+    try:
+        client = chromadb.PersistentClient(path="./chroma_db")
+        collections = client.list_collections()
+        names = sorted(collection.name for collection in collections)
+    except Exception:
+        names = []
+
+    EMBEDDER.collection_names = names
+    st.session_state.uploaded_files = names
+    st.session_state.embedded_collections = names
+    return names
 
 
 init_state()
 EMBEDDER = st.session_state.embedder
 CONTEXT = st.session_state.context
 LLM = st.session_state.llm
-
-if "uploaded_files" not in st.session_state:
-    try:
-        st.session_state.uploaded_files = st.session_state.embedder.collection_names.copy()
-    except Exception:
-        st.session_state.uploaded_files = []
+refresh_embedded_collections()
 
 
 # ─── Backend stubs (replace with your real implementations) ───────────────────
@@ -59,13 +71,14 @@ def embed_file(uploaded_file) -> bool:
     # ── stub: pretend it worked ──
     return success
  
-def query_rag(prompt: str) -> tuple[str, int]:
-    # ── stub: pretend we got a response from the LLM ──
+def query_rag(prompt: str, history: list | None = None) -> tuple[str, int]:
+    history = history if history is not None else CONTEXT.history
+
     Embedded_response = CONTEXT.build_documents_context(EMBEDDER, prompt)
-    msg = CONTEXT.build_context(CONTEXT.history, prompt, Embedded_response)
+    msg = CONTEXT.build_context(history, prompt, Embedded_response)
     response = LLM.invoke(msg)
     total_tokens = len(prompt.split()) + len(response.split()) + len(Embedded_response.split())
-    
+
     CONTEXT.history.append({"role": "user", "content": prompt})
     CONTEXT.history.append({"role": "assistant", "content": response})
 
@@ -105,21 +118,22 @@ with st.sidebar:
     )
  
     if uploaded:
-        new_files = [f for f in uploaded if f.name not in st.session_state.uploaded_files]
+        new_files = [f for f in uploaded if not EMBEDDER.check_duplicate(f)]
         if new_files:
             with st.spinner(f"Embedding {len(new_files)} file(s)…"):
                 for f in new_files:
                     success = embed_file(f)
                     if success:
-                        st.session_state.uploaded_files.append(f.name)
+                        refresh_embedded_collections()
  
-    # Show embedded file list
-    if st.session_state.uploaded_files:
-        for name in st.session_state.uploaded_files:
-            st.markdown(f'<span class="file-pill">📄 {name}</span>', unsafe_allow_html=True)
+    # Show embedded collection list
+    embedded_collections = refresh_embedded_collections()
+    if embedded_collections:
+        for collection_name in embedded_collections:
+            st.markdown(f'<span class="file-pill">🗂️ {collection_name}</span>', unsafe_allow_html=True)
     else:
         st.markdown(
-            '<span style="font-size:12px;color:#444;">No files uploaded yet.</span>',
+            '<span style="font-size:12px;color:#444;">No collections embedded yet.</span>',
             unsafe_allow_html=True,
         )
  
