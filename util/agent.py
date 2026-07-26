@@ -28,6 +28,7 @@ from typing import Any
 
 import anthropic
 
+from .embedder import Embedder
 from .skills import SkillRegistry, build_default_registry
 
 
@@ -40,6 +41,15 @@ class Agent:
     server_tools: list[dict[str, Any]] = field(default_factory=list)
     max_tokens: int = 2048
     messages: list[dict[str, Any]] = field(default_factory=list)
+    embedder: Embedder | None = None
+
+    def __post_init__(self) -> None:
+        if self.embedder is not None and self.skills.embedder is None:
+            self.skills.embedder = self.embedder
+
+    @property
+    def SkillRegistry(self) -> SkillRegistry:
+        return self.skills
 
     def _tools(self) -> list[dict[str, Any]]:
         # Server tools (like Anthropic's built-in web search) and your own
@@ -103,8 +113,11 @@ class Agent:
             # either calls another tool or produces a final answer.
 
 
-def build_agent() -> Agent:
+def build_agent(embedder: Embedder | None = None) -> Agent:
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+
+    if embedder is None:
+        embedder = Embedder()
 
     return Agent(
         client=client,
@@ -115,11 +128,12 @@ def build_agent() -> Agent:
             "base for questions about the user's own documents; use web "
             "search for anything current or outside that knowledge base."
         ),
-        skills=build_default_registry(),
+        skills=build_default_registry(embedder=embedder),
         # Anthropic's server-side web search tool — no handler code needed,
         # Anthropic executes it and returns results directly in the
         # response content.
         server_tools=[{"type": "web_search_20250305", "name": "web_search"}],
+        embedder=embedder,
     )
 
 

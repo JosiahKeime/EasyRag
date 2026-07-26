@@ -22,6 +22,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable
 
+from .embedder import Embedder
+
 
 # ---------------------------------------------------------------------------
 # 1. The Skill abstraction
@@ -55,8 +57,9 @@ class Skill:
 class SkillRegistry:
     """Holds all skills the agent knows about."""
 
-    def __init__(self) -> None:
+    def __init__(self, embedder: Embedder | None = None) -> None:
         self._skills: dict[str, Skill] = {}
+        self.embedder = embedder
 
     def register(
         self,
@@ -86,8 +89,8 @@ class SkillRegistry:
 # 2. Concrete skills
 # ---------------------------------------------------------------------------
 
-def build_default_registry() -> SkillRegistry:
-    registry = SkillRegistry()
+def build_default_registry(embedder: Embedder | None = None) -> SkillRegistry:
+    registry = SkillRegistry(embedder=embedder)
 
     # --- ChromaDB search skill ------------------------------------------
     # Swap in your real easy_rag collection here. Kept lazy (imported
@@ -116,14 +119,39 @@ def build_default_registry() -> SkillRegistry:
     def search_knowledge_base(query: str, n_results: int = 5) -> str:
         import chromadb
 
-        client = chromadb.PersistentClient(path="./chroma_db")  # adjust path
-        collection = client.get_or_create_collection("my_collection")  # adjust name
-        results = collection.query(query_texts=[query], n_results=n_results)
+        active_embedder = registry.embedder
+        if active_embedder is None:
+            active_embedder = Embedder()
 
-        docs = results.get("documents", [[]])[0]
-        if not docs:
+        try:
+            client = chromadb.PersistentClient(path=active_embedder.chromadb_path)
+            active_embedder.collection_names = [collection.name for collection in client.list_collections()]
+        except Exception as exc:
+            return f"Error refreshing knowledge base collections: {exc}"
+
+        if not active_embedder.collection_names:
+            return "No embedded collections found."
+
+        collected_docs: list[str] = []
+        for collection_name in active_embedder.collection_names:
+            try:
+                results = active_embedder.vector_db_search(query, collection_name, k=n_results)
+            except Exception as exc:
+                collected_docs.append(f"[{collection_name}] Error: {exc}")
+                continue
+
+            if not results:
+                continue
+
+            for result in results:
+                chunk_text = getattr(result, "page_content", "")
+                if chunk_text:
+                    collected_docs.append(f"[{collection_name}] {chunk_text}")
+
+        if not collected_docs:
             return "No results found."
-        return "\n\n---\n\n".join(docs)
+
+        return "\n\n---\n\n".join(collected_docs[:n_results * 2])
 
     # --- A trivial example "skill" to show the pattern for anything else -
     @registry.register(
