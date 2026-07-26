@@ -2,6 +2,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+from . import agent
+from . import skills
 from .embedder import Embedder
 from .context import Context
 from .llm_client import LLMClient
@@ -14,4 +16,6 @@ __all__ = [
     "logger",
     "configure_logging",
     "redact_sensitive_data",
+    "agent",
+    "skills",
 ]
