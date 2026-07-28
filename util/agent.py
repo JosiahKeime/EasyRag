@@ -28,6 +28,7 @@ from typing import Any
 
 import anthropic
 
+from .context import Context
 from .embedder import Embedder
 from .skills import SkillRegistry, build_default_registry
 
@@ -38,14 +39,14 @@ class Agent:
     model: str
     system_prompt: str
     skills: SkillRegistry
+    role: str = "assistant"
+    context: Context | None = None
     server_tools: list[dict[str, Any]] = field(default_factory=list)
     max_tokens: int = 2048
-    messages: list[dict[str, Any]] = field(default_factory=list)
-    embedder: Embedder | None = None
 
     def __post_init__(self) -> None:
-        if self.embedder is not None and self.skills.embedder is None:
-            self.skills.embedder = self.embedder
+        if self.context is None:
+            self.context = Context()
 
     @property
     def SkillRegistry(self) -> SkillRegistry:
@@ -60,8 +61,8 @@ class Agent:
         return self.client.messages.create(
             model=self.model,
             max_tokens=self.max_tokens,
-            system=self.system_prompt,
-            messages=self.messages,
+            system= self.system_prompt,
+            messages=self.context.get_messages(),
             tools=self._tools(),
         )
 
@@ -86,13 +87,13 @@ class Agent:
     def run(self, user_input: str) -> str:
         """Send one user message through the full tool-use loop and
         return the agent's final text reply."""
-        self.messages.append({"role": "user", "content": user_input})
+        self.context.append_message("user", user_input)
 
         while True:
             response = self._call_model()
 
             # Always append the assistant turn (text + any tool_use blocks)
-            self.messages.append({"role": "assistant", "content": response.content})
+            self.context.append_message(self.role, response.content)
 
             if response.stop_reason != "tool_use":
                 # No more tools requested -> this is the final answer.
@@ -108,7 +109,7 @@ class Agent:
                 for block in response.content
                 if block.type == "tool_use"
             ]
-            self.messages.append({"role": "user", "content": tool_results})
+            self.context.append_message("user", tool_results)
             # Loop back around: the model now sees the tool results and
             # either calls another tool or produces a final answer.
 
@@ -119,21 +120,23 @@ def build_agent(embedder: Embedder | None = None) -> Agent:
     if embedder is None:
         embedder = Embedder()
 
+    system_prompt = (
+        "You are a helpful research assistant. You have access to a "
+        "local knowledge base and the public web. Prefer the knowledge "
+        "base for questions about the user's own documents; use web "
+        "search for anything current or outside that knowledge base."
+    )
+
     return Agent(
         client=client,
         model="claude-sonnet-4-6",
-        system_prompt=(
-            "You are a helpful research assistant. You have access to a "
-            "local knowledge base and the public web. Prefer the knowledge "
-            "base for questions about the user's own documents; use web "
-            "search for anything current or outside that knowledge base."
-        ),
+        system_prompt=system_prompt,
         skills=build_default_registry(embedder=embedder),
         # Anthropic's server-side web search tool — no handler code needed,
         # Anthropic executes it and returns results directly in the
         # response content.
         server_tools=[{"type": "web_search_20250305", "name": "web_search"}],
-        embedder=embedder,
+        context=Context(),
     )
 
 

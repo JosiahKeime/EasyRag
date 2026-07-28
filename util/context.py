@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import json
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
-from langchain_core import messages
+from langchain_core import messages as langchain_messages
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 import config
@@ -10,10 +13,23 @@ from .logging_utils import _serialize_messages, logger
 
 
 class Context:
-    def __init__(self, history=None, system_prompt=None, documents=None):
-        self.system_prompt = system_prompt or config.system_prompt
-        self.history = history or []
+    def __init__(self, history=None, documents=None):
+        self.history = list(history or [])
         self.documents = documents or []
+
+    @property
+    def messages(self) -> list[dict[str, Any]]:
+        return self.history
+
+    @messages.setter
+    def messages(self, value: list[dict[str, Any]]) -> None:
+        self.history = list(value or [])
+
+    def get_messages(self) -> list[dict[str, Any]]:
+        return self.history
+
+    def append_message(self, role: str, content: Any) -> None:
+        self.history.append({"role": role, "content": content})
 
     @staticmethod
     def _to_collection_name(document_name):
@@ -72,7 +88,7 @@ class Context:
         logger.info("Document context built | length=%d | content=%s", len(doc_context), doc_context)
         return doc_context
 
-    def history_to_langchain_messages(self, history) -> list[messages.BaseMessage]:
+    def history_to_langchain_messages(self, history) -> list[langchain_messages.BaseMessage]:
         msg = []
         for m in history:
             if m["role"] == "user":
@@ -81,9 +97,10 @@ class Context:
                 msg.append(AIMessage(content=m["content"]))
         return msg
 
-    def build_context(self, history, user_input, doc_context):
+    def build_full_context(self, history=None, user_input="", doc_context=""):
         msg = []
-        full_system = self.system_prompt + "\n\n## Relevant Document Excerpts\n" + doc_context
+        history = list(history if history is not None else self.history)
+        doc_context = "\n\n## Relevant Document Excerpts\n" + doc_context
 
         logger.info(
             "Building LLM context | history_entries=%d | user_input=%s | doc_context=%s",
@@ -91,26 +108,31 @@ class Context:
             user_input,
             doc_context,
         )
-        logger.info("System prompt + document context: %s", full_system)
+        logger.info("document context: %s", doc_context)
 
-        msg.append(SystemMessage(content=full_system))
+        msg.append(SystemMessage(content=doc_context))
         msg.extend(self.history_to_langchain_messages(history))
         msg.append(HumanMessage(content=user_input))
 
         logger.info("Final context messages: %s", json.dumps(_serialize_messages(msg), ensure_ascii=False))
         return msg
 
-    def update_history(self, user_input, response, history):
-        history.append({"role": "user", "content": user_input, "timestamp": datetime.now().isoformat()})
-        history.append({"role": "assistant", "content": response, "timestamp": datetime.now().isoformat()})
+    def update_history(self, user_input, response, history=None):
+        target_history = history if history is not None else self.history
+        target_history.append({"role": "user", "content": user_input, "timestamp": datetime.now().isoformat()})
+        target_history.append({"role": "assistant", "content": response, "timestamp": datetime.now().isoformat()})
+        return target_history
 
-    def save_history_to_json(self, history: list, path: str = "./converstations/history.json"):
+    def save_history_to_json(self, history: list | None = None, path: str = "./converstations/history.json"):
+        target_history = history if history is not None else self.history
         with open(path, "w") as f:
-            json.dump(history, f, indent=2)
+            json.dump(target_history, f, indent=2)
 
     def load_history_from_json(self, path: str = "./converstations/history.json") -> list:
         file = Path(path)
         if not file.exists():
             return []
         with open(file, "r") as f:
-            return json.load(f)
+            loaded_history = json.load(f)
+            self.history = list(loaded_history)
+            return self.history

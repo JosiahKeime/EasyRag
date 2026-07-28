@@ -75,7 +75,7 @@ def query_rag(prompt: str, history: list | None = None) -> tuple[str, int]:
     history = history if history is not None else CONTEXT.history
 
     Embedded_response = CONTEXT.build_documents_context(EMBEDDER, prompt)
-    msg = CONTEXT.build_context(history, prompt, Embedded_response)
+    msg = CONTEXT.build_full_context(history, prompt, Embedded_response)
     response = LLM.invoke(msg)
     total_tokens = len(prompt.split()) + len(response.split()) + len(Embedded_response.split())
 
