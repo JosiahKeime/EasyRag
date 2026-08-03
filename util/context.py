@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from attr import dataclass, field
+from dataclasses import dataclass, field
 from langchain_core import messages as langchain_messages
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 

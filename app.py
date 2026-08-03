@@ -5,6 +5,7 @@ from util.embedder import Embedder
 from util.context import Context
 from util.llm_client import LLMClient
 from datetime import datetime
+from util import agent
 
 # ─── Page config (must be first Streamlit call) ───────────────────────────────
 st.set_page_config(
@@ -40,7 +41,7 @@ def init_state():
         st.session_state.context = Context()
     # ── LLMClient ─────────────────────────────────────────────────
     if "llm" not in st.session_state:
-        st.session_state.llm = LLMClient(provider='openai')
+        st.session_state.agent = agent.build_agent()
 
 
 def refresh_embedded_collections() -> list[str]:
@@ -60,7 +61,7 @@ def refresh_embedded_collections() -> list[str]:
 init_state()
 EMBEDDER = st.session_state.embedder
 CONTEXT = st.session_state.context
-LLM = st.session_state.llm
+AGENT = st.session_state.agent
 refresh_embedded_collections()
 
 
@@ -74,9 +75,7 @@ def embed_file(uploaded_file) -> bool:
 def query_rag(prompt: str, history: list | None = None) -> tuple[str, int]:
     history = history if history is not None else CONTEXT.history
 
-    Embedded_response = CONTEXT.build_documents_context(EMBEDDER, prompt)
-    msg = CONTEXT.build_full_context(history, prompt, Embedded_response)
-    response = LLM.invoke(msg)
+    response = AGENT.run(prompt, history=history)
     total_tokens = len(prompt.split()) + len(response.split()) + len(Embedded_response.split())
 
     CONTEXT.history.append({"role": "user", "content": prompt})

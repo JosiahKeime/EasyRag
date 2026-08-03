@@ -62,7 +62,7 @@ class Agent:
             model=self.model,
             max_tokens=self.max_tokens,
             system= self.system_prompt,
-            messages=self.context.get_messages(),
+            messages=self.context.history,
             tools=self._tools(),
         )
 
@@ -87,19 +87,31 @@ class Agent:
     def run(self, user_input: str) -> str:
         """Send one user message through the full tool-use loop and
         return the agent's final text reply."""
-        self.context.append_message("user", user_input)
 
+        self.context.append_history("user", user_input)
+        print(f"User input: {user_input}")
+
+        loop_count = 0
         while True:
+            loop_count += 1
+            print(f"Agent loop iteration {loop_count}")
             response = self._call_model()
+            print(f"Model response: {response}")
+            print('==========================================')
+            print(f"Model content: {response.content}")
+            print('==========================================')
+            for block in response.content:
+                if block.type == "tool_use":
+                    print(f"Model requested tool: {block.name} with input: {block.input}")
 
             # Always append the assistant turn (text + any tool_use blocks)
-            self.context.append_message(self.role, response.content)
+            self.context.append_history(self.role, response.content)
 
             if response.stop_reason != "tool_use":
                 # No more tools requested -> this is the final answer.
                 return "".join(
                     block.text for block in response.content if block.type == "text"
-                )
+                ), response
 
             # The model wants to use one or more tools. Execute each,
             # collect the results, and send them back in a single
@@ -109,23 +121,25 @@ class Agent:
                 for block in response.content
                 if block.type == "tool_use"
             ]
-            self.context.append_message("user", tool_results)
+            print(f"Tool results: {tool_results}")
+            print('==========================================')
+            self.context.append_history("user", tool_results)
             # Loop back around: the model now sees the tool results and
             # either calls another tool or produces a final answer.
 
 
-def build_agent(embedder: Embedder | None = None) -> Agent:
+def build_agent(embedder: Embedder | None = None, system_prompt: str | None = None) -> Agent:
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
     if embedder is None:
         embedder = Embedder()
-
-    system_prompt = (
-        "You are a helpful research assistant. You have access to a "
-        "local knowledge base and the public web. Prefer the knowledge "
-        "base for questions about the user's own documents; use web "
-        "search for anything current or outside that knowledge base."
-    )
+    if system_prompt is None:
+        system_prompt = (
+            "You are a helpful research assistant. You have access to a "
+            "local knowledge base and the public web. Prefer the knowledge "
+            "base for questions about the user's own documents; use web "
+            "search for anything current or outside that knowledge base."
+        )
 
     return Agent(
         client=client,
@@ -138,18 +152,3 @@ def build_agent(embedder: Embedder | None = None) -> Agent:
         server_tools=[{"type": "web_search_20250305", "name": "web_search"}],
         context=Context(),
     )
-
-
-def repl() -> None:
-    agent = build_agent()
-    print("Agent ready. Type 'exit' to quit.\n")
-    while True:
-        user_input = input("You: ").strip()
-        if user_input.lower() in {"exit", "quit"}:
-            break
-        reply = agent.run(user_input)
-        print(f"\nAgent: {reply}\n")
-
-
-if __name__ == "__main__":
-    repl()
